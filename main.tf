@@ -35,7 +35,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "s3_tf_encryption"
 
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm     = "aws:kms"
+      sse_algorithm = "aws:kms"
     }
   }
 }
@@ -63,8 +63,8 @@ resource "aws_s3_bucket_notification" "s3_tf_notification" {
   bucket = aws_s3_bucket.s3_tf.id
 
   queue {
-    queue_arn     = aws_sqs_queue.s3_event_queue.arn
-    events        = ["s3:ObjectCreated:*", "s3:ObjectRemoved:*"]
+    queue_arn = aws_sqs_queue.s3_event_queue.arn
+    events    = ["s3:ObjectCreated:*", "s3:ObjectRemoved:*"]
   }
 }
 
