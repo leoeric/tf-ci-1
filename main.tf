@@ -10,6 +10,7 @@ terraform {
   }
 }
 
+# Create an S3 bucket
 resource "aws_s3_bucket" "s3_tf" {
   bucket_prefix = "eric"# Set your bucket name here
 }
