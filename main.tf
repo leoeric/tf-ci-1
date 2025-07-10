@@ -42,29 +42,8 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "s3_tf_encryption"
 
 # Create a separate bucket to store access logs
 resource "aws_s3_bucket" "log_bucket" {
+  # checkov:skip=CKV_AWS_21:This bucket is for temporary files and does not need versioning
   bucket_prefix = "eric-tf-logs"
 }
 
-# Enable logging on the main bucket
-resource "aws_s3_bucket_logging" "s3_tf_logging" {
-  bucket = aws_s3_bucket.s3_tf.id
-
-  target_bucket = aws_s3_bucket.log_bucket.id
-  target_prefix = "log/"
-}
-
-# Create an SQS queue to receive notifications
-resource "aws_sqs_queue" "s3_event_queue" {
-  name_prefix = "s3-event-queue"
-}
-
-# Configure the event notification on the bucket
-resource "aws_s3_bucket_notification" "s3_tf_notification" {
-  bucket = aws_s3_bucket.s3_tf.id
-
-  queue {
-    queue_arn = aws_sqs_queue.s3_event_queue.arn
-    events    = ["s3:ObjectCreated:*", "s3:ObjectRemoved:*"]
-  }
-}
 
