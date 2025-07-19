@@ -10,19 +10,6 @@ data "aws_caller_identity" "current" {}
 
 data "aws_region" "current" {}
 
-# 1. Create the Virtual Private Cloud (VPC)
-resource "aws_vpc" "main" {
-  cidr_block = "10.0.0.0/16"
-
-  # Enables DNS hostnames in the VPC
-  enable_dns_hostnames = true
-  enable_dns_support   = true
-
-  tags = {
-    Name = "${local.prefix}-app-vpc"
-  }
-}
-
 # 3. Create a Security Group for the ECS Service
 resource "aws_security_group" "ecs_service_sg" {
   name        = "${local.prefix}-ecs-service-sg"
