@@ -6,30 +6,48 @@ locals {
   prefix = "eric" # Set your desired prefix here
 }
 
-terraform {
-  required_version = ">= 1.0.0"
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-  }
-  backend "s3" {
-    bucket = "sctp-ce10-tfstate"
-    key    = "eric-ce10-tfstate" #Change this
-    region = "ap-southeast-1"
+data "aws_caller_identity" "current" {}
+
+data "aws_region" "current" {}
+
+# 1. Create the Virtual Private Cloud (VPC)
+resource "aws_vpc" "main" {
+  cidr_block = "10.0.0.0/16"
+
+  # Enables DNS hostnames in the VPC
+  enable_dns_hostnames = true
+  enable_dns_support   = true
+
+  tags = {
+    Name = "${local.prefix}-app-vpc"
   }
 }
 
-resource "aws_s3_bucket" "s3_tf" {
-  #checkov:skip=CKV2_AWS_6: "Ensure that S3 bucket has a Public Access block"
-  #checkov:skip=CKV_AWS_145: "Ensure that S3 buckets are encrypted with KMS by default"
-  #checkov:skip=CKV2_AWS_62: "Ensure S3 buckets should have event notifications enabled"
-  #checkov:skip=CKV_AWS_18: "Ensure the S3 bucket has access logging enabled"
-  #checkov:skip=CKV_AWS_144: "Ensure that S3 bucket has cross-region replication enabled"
-  #checkov:skip=CKV_AWS_21: "Ensure all data stored in the S3 bucket have versioning enabled"
-  #checkov:skip=CKV2_AWS_61: "Ensure that an S3 bucket has a lifecycle configuration"
-  bucket_prefix = "${local.prefix}" # Set your bucket name here
+# 3. Create a Security Group for the ECS Service
+resource "aws_security_group" "ecs_service_sg" {
+  name        = "${local.prefix}-ecs-service-sg"
+  description = "Allow traffic to the ECS container"
+  vpc_id      = "vpc-0d89969d63958a1fc"
+
+  # Allow inbound traffic on port 8080 from anywhere
+  ingress {
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] # WARNING: This is open to the world. Restrict if needed.
+  }
+
+  # Allow all outbound traffic
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "${local.prefix}-ecs-sg"
+  }
 }
 
 resource "aws_ecr_repository" "ecr" {
@@ -51,11 +69,11 @@ module "ecs" {
   }
 
   services = {
-    "${local.prefix}-taskdefinition" = { #task definition and service name -> #Change
+    "${local.prefix}-taskdefinition" = {
       cpu    = 512
       memory = 1024
       container_definitions = {
-        "${local.prefix}-container" = { #container name -> Change
+        "${local.prefix}-container" = {
           essential = true
           image     = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${data.aws_region.current.name}.amazonaws.com/${local.prefix}-ecr:latest"
           port_mappings = [
@@ -68,8 +86,15 @@ module "ecs" {
       }
       assign_public_ip                   = true
       deployment_minimum_healthy_percent = 100
-      subnet_ids                   = [] #List of subnet IDs to use for your tasks
-      security_group_ids           = [] #Create a SG resource and pass it here
+
+      # ✅ SUBNETS ADDED: Pass the IDs of the subnets you created.
+      subnet_ids = [
+        "subnet-085e1089341f1aaa9",
+        "subnet-0a9ad1569e0f18a9a"
+      ]
+
+      # ✅ SECURITY GROUP ADDED: Pass the ID of the new security group.
+      security_group_ids = [aws_security_group.ecs_service_sg.id]
     }
   }
 }
